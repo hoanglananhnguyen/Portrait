@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>ZIM - Code Creativity</title>
+
+<!-- zimjs.com - JavaScript Canvas Framework -->
+<script type=module>
+
+import zim from "https://zimjs.org/cdn/01/zim";
+
+// See Docs under Frame for FIT, FILL, FULL, and TAG
+// const notes = ["portraitNote.png", "portraitNotee.png", "portraitNoteee.png"];
+const noteAssets = ["note1.png", "note2.png", "note3.png", "note4.png", "note5.png"];
+const assets = ["portraitCoffee.png", "portraitHelp.png","done.png","sound.mp3",...noteAssets]; //sound later
+const path = "assets/";
+
+
+new Frame(FIT, 1024, 768, white, dark, ready, assets, path);
+function ready() {
+    const backing = new Rectangle(W-100, H-100, green.lighten(.3))
+    .center();
+
+    const game = new Container(backing.width, backing.height)
+        .loc(backing)
+        .setMask(backing);
+
+    const notes = new Container().addTo(game);
+    notes.count = 0;
+    loop(15, () => {
+        const note = new Pic(noteAssets).sca(.4).rot(rand(-45,45)).alp(rand(.5));
+        note.loc(rand(backing.width),rand(backing.height),game);
+    })
+
+    new Pane(300,100,"Click here",0,null).show();
+
+    S.on("stagemousedown", startGame, null, true);
+
+    function startGame() {
+        dropNotes()
+    };
+//1. create falling notes
+    const pics = [noteAssets];
+    function dropNotes() {
+        interval(.1, () => {
+            const note = new Pic(noteAssets).sca(.4).rot(rand(-10,60));
+            note.loc(rand(note.width, W-105-note.width), -note.height, notes);
+            notes.count += 1;
+            note.animate({
+                props: {y:backing.height-50},
+                time: 1,
+                ease: "linear",
+                call: () => {
+                    note.fallen = true;
+                }
+            });
+        }, 50);
+    };
+
+  // 2. create person
+    const person = new Pic("portraitHelp.png")
+    .centerReg()
+    .sca(.3)
+    .pos(0,0,CENTER,BOTTOM,game);
+
+  // 3. move person with mousemove
+    const mc = new MotionController({
+        target: person,
+        type: "mousemove",
+        speed: 20,
+        damp: .1,
+        axis: "horizontal",
+        boundary: new Boundary(person.width/2, backing.y+backing.height, backing.width-person.width,0),
+        container: game
+    });
+
+// 4. Hittest
+    const label = new Pic("done.png").centerReg(game).alp(0).sca(.4);
+
+    function check() {
+        if (notes.numChildren > 0) {
+            notes.loop((note) => {
+                if(person.hitTestRect(note)) {
+                    note.fallen=true;
+                    note.stopAnimate();
+                    label.loc(note)
+                    .animate({
+                      props: {alpha: 1},
+                      time:.25,
+                      rewind: true
+                    });
+                    note.dispose();
+                    new Aud("sound.mp3").play({volume:.2});
+                }
+            }, true);
+        } else if (notes.count && notes.count > 0) {
+            notes.dispose();
+            mc.dispose();
+            person.dispose();
+            label.dispose();
+            Ticker.remove(check);
+
+//5. Flip
+            const backing2 = new Rectangle(W-100, H-100, white).center();
+
+            const front = new Container(400, 400).center();
+            new Rectangle(400, 400, black).addTo(front);
+            new Pic("portraitHelp.png").scaleTo(front).center(front);
+            const back = new Container(400, 400).center();
+            new Rectangle(400, 400, green.lighten(.3)).addTo(back);
+            new Pic("portraitCoffee.png").scaleTo(back).center(back);
+            const flipper = new Flipper(front,back).center();
+
+            const info = new Label("MORE ABOUT ME!", 30, "courier");
+            const button = new Button({
+              label:info,
+              width:400,
+              height:80,
+              backgroundColor:white,
+              rollBackgroundColor:black,
+              shadowColor:null,
+              shadowBlur:0,
+              corner:0
+            }).pos(0,120,CENTER,BOTTOM);
+
+            button.on("click", () => {
+              zgo("https://www.behance.net/hoanglananh");
+              new Aud({
+                file:"sound.mp3",
+                volume:.2,
+                interrupt:"any",
+                maxNum:1})
+              .play();
+              S.update();
+            });
+        }
+    }
+
+    Ticker.add(check);
+}
+
+</script>
+<meta name="viewport" content="width=device-width, user-scalable=no" />
+</head>
+<body></body>
+</html>
